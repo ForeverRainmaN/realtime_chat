@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia"
 
-const app = new Elysia({ prefix: '/api' })
+export const app = new Elysia({ prefix: '/api' })
     .get('/', 'Hello Nextjs')
     .post('/', ({ body }) => body, {
         body: t.Object({
