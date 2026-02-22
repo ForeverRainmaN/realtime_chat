@@ -36,7 +36,7 @@ export default function Home() {
     main()
   }, [])
 
-  const { mutate: createRoom } = useMutation({
+  const { mutate: createRoom, isPending } = useMutation({
     mutationFn: async () => {
       const res = await client.room.create.post()
 
@@ -72,9 +72,14 @@ export default function Home() {
 
           <button
             onClick={() => createRoom()}
-            className="w-full bg-zinc-100 p-3 text-sm font-bold hover:hover: text-black transition-colors mt-2 cursor-pointer disabled:opacit-50"
+            disabled={isPending}
+            className={`w-full p-3 text-sm font-bold transition-colors mt-2 cursor-pointer disabled:opacity-50 ${
+              isPending
+                ? "bg-zinc-600 text-zinc-300 cursor-not-allowed"
+                : "bg-zinc-100 text-black hover:bg-zinc-200"
+            }`}
           >
-            CREATE SECURE ROOM
+            {isPending ? "CREATING..." : "CREATE SECURE ROOM"}
           </button>
         </div>
       </div>
