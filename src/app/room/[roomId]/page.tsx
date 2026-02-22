@@ -25,6 +25,13 @@ const Page = () => {
   const [input, setInput] = useState<string>("")
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const copyLink = () => {
+    const url = window.location.href
+    navigator.clipboard.writeText(url)
+    setCopyStatus("COPIED!")
+    setTimeout(() => setCopyStatus("COPY"), 2000)
+  }
+
   const { data: ttlData } = useQuery({
     queryKey: ["ttl", roomId],
     queryFn: async () => {
@@ -97,12 +104,11 @@ const Page = () => {
     }
   })
 
-  const copyLink = () => {
-    const url = window.location.href
-    navigator.clipboard.writeText(url)
-    setCopyStatus("COPIED!")
-    setTimeout(() => setCopyStatus("COPY"), 2000)
-  }
+  const { mutate: destroyRoom } = useMutation({
+    mutationFn: async () => {
+      await client.room.delete(null, { query: { roomId } })
+    }
+  })
 
   return (
     <main className="flex flex-col h-screen max-h-screen overflow-hidden">
@@ -137,7 +143,10 @@ const Page = () => {
           </div>
         </div>
 
-        <button className="text-xs bg-zinc-800 hover:bg-red-600 px-3 py-1.5 rounded text-zinc-400 hover:text-white font-bold transition-all group flex items-center gap-2 disabled:opacity-50">
+        <button
+          onClick={() => destroyRoom()}
+          className="text-xs bg-zinc-800 hover:bg-red-600 px-3 py-1.5 rounded text-zinc-400 hover:text-white font-bold transition-all group flex items-center gap-2 disabled:opacity-50"
+        >
           <span className="group-hover:animate-pulse">💣</span>
           DESTROY NOW
         </button>
