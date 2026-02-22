@@ -5,8 +5,8 @@ import { client } from "@/lib"
 import { useRealtime } from "@/lib/realtime-client"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { format } from "date-fns"
-import { useParams } from "next/navigation"
-import { useRef, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
 
 function formatTimeRemaining(seconds: number) {
   const mins = Math.floor(seconds / 60)
@@ -16,12 +16,51 @@ function formatTimeRemaining(seconds: number) {
 
 const Page = () => {
   const params = useParams()
+  const router = useRouter()
   const roomId = params.roomId as string
-  const username = useUsername()
+  const { username } = useUsername()
 
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [copyStatus, setCopyStatus] = useState<string>("COPY")
   const [input, setInput] = useState<string>("")
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const { data: ttlData } = useQuery({
+    queryKey: ["ttl", roomId],
+    queryFn: async () => {
+      const res = await client.room.ttl.get({ query: { roomId } })
+      return res.data
+    },
+    staleTime: Infinity,
+    refetchOnWindowFocus: false
+  })
+
+  const [prevTtl, setPrevTtl] = useState<number | undefined>(ttlData?.ttl)
+
+  if (ttlData?.ttl !== prevTtl) {
+    setPrevTtl(ttlData?.ttl)
+    setTimeRemaining(ttlData?.ttl ?? null)
+  }
+
+  useEffect(() => {
+    if (timeRemaining == null || timeRemaining < 0) return
+    if (timeRemaining === 0) {
+      router.push("/?destroyed=true")
+      return
+    }
+
+    const interval = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [timeRemaining, router])
 
   const { data: messages, refetch } = useQuery({
     queryKey: ["messages", roomId],
@@ -37,6 +76,10 @@ const Page = () => {
     onData: ({ event }) => {
       if (event === "chat.message") {
         refetch()
+      }
+
+      if (event === "chat.destroy") {
+        router.push("/?destroyed=true")
       }
     }
   })
@@ -60,8 +103,6 @@ const Page = () => {
     setCopyStatus("COPIED!")
     setTimeout(() => setCopyStatus("COPY"), 2000)
   }
-
-  const [timeRemaining, setTimeRemaining] = useState<number>(51)
 
   return (
     <main className="flex flex-col h-screen max-h-screen overflow-hidden">

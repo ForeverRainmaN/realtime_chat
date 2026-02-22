@@ -29,5 +29,5 @@ export const useUsername = () => {
     main()
   }, [])
 
-  return username
+  return { username }
 }
