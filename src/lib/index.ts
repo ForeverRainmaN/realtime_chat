@@ -1,2 +1,3 @@
-export { client } from './client'
-export { redis } from './redis'
+export { client } from "./client"
+export * from "./realtime"
+export { redis } from "./redis"

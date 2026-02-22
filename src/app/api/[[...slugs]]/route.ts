@@ -1,4 +1,5 @@
 import { authMiddleware } from "@/app/api/[[...slugs]]/auth"
+import { Message, realtime } from "@/lib"
 import { redis } from "@/lib/redis"
 import { Elysia } from "elysia"
 import { nanoid } from "nanoid"
@@ -22,13 +23,33 @@ const messages = new Elysia({ prefix: "/messages" }).use(authMiddleware).post(
   "/",
   async ({ body, auth }) => {
     const { sender, text } = body
-    const { roomId } = auth
+    const { roomId, token } = auth
 
     const roomExists = await redis.exists(`meta:${roomId}`)
 
     if (!roomExists) {
       throw new Error("Room does not exist")
     }
+
+    const message: Message = {
+      id: nanoid(),
+      sender,
+      text,
+      timestamp: Date.now(),
+      roomId
+    }
+
+    await redis.rpush(`messages:${roomId}`, {
+      ...message,
+      token
+    })
+
+    await realtime.channel(roomId).emit("chat.message", message)
+    const remaining = await redis.ttl(`meta:${roomId}`)
+
+    await redis.expire(`messages:${roomId}`, remaining)
+    await redis.expire(`history:${roomId}`, remaining)
+    await redis.expire(roomId, remaining)
   },
   {
     query: z.object({ roomId: z.string() }),
@@ -39,7 +60,7 @@ const messages = new Elysia({ prefix: "/messages" }).use(authMiddleware).post(
   }
 )
 
-export const app = new Elysia({ prefix: "/api" }).use(rooms)
+export const app = new Elysia({ prefix: "/api" }).use(rooms).use(messages)
 
 export const GET = app.fetch
 export const POST = app.fetch
